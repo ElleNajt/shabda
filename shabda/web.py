@@ -1,24 +1,24 @@
 """Shabda web routes"""
 
 import asyncio
-import os
-from urllib.parse import urlparse
 import json
-from zipfile import ZipFile
+import os
 import tempfile
+from urllib.parse import urlparse
+from zipfile import ZipFile
 
 from flask import (
     Blueprint,
-    jsonify,
-    send_from_directory,
-    request,
-    render_template,
-    send_file,
     after_this_request,
+    jsonify,
+    render_template,
+    request,
+    send_file,
+    send_from_directory,
 )
 from werkzeug.exceptions import BadRequest, HTTPException
-from shabda.dj import Dj
 
+from shabda.dj import Dj
 
 SHABDA_PATH = os.path.expanduser("~/.shabda/")
 
@@ -170,6 +170,7 @@ async def speech(definition):
     """Download a spoken word"""
     gender = request.args.get("gender", "f")
     language = request.args.get("language", "en-GB")
+    pitch = request.args.get("pitch", 0.0, type=float)
 
     definition = definition.replace(" ", "_")
     try:
@@ -178,7 +179,7 @@ async def speech(definition):
         raise BadRequest(ex) from ex
     tasks = []
     for word in words:
-        tasks.append(speak_one(word, language, gender))
+        tasks.append(speak_one(word, language, gender, pitch))
     results = await asyncio.gather(*tasks)
     global_status = "empty"
     for status in results:
@@ -199,6 +200,7 @@ async def speech_json(definition):
     strudel = request.args.get("strudel", False, type=bool)
     gender = request.args.get("gender", "f")
     language = request.args.get("language", "en-GB")
+    pitch = request.args.get("pitch", 0.0, type=float)
     definition = definition.replace(" ", "_")
 
     await speech(definition)
@@ -281,9 +283,9 @@ def cors_after(response):
     return response
 
 
-async def speak_one(word, language, gender):
+async def speak_one(word, language, gender, pitch=0.0):
     """Speak a word"""
-    return await dj.speak(word, language, gender)
+    return await dj.speak(word, language, gender, pitch)
 
 
 async def fetch_one(word, number, licenses):

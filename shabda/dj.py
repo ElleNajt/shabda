@@ -3,22 +3,22 @@
 
 """Shabda engine"""
 
-from functools import partial
-import random
-import os
 import asyncio
+import os
+import random
 import urllib
+from functools import partial
 
 import freesound
 import pydub
-from termcolor import colored
 from google.cloud import texttospeech
+from termcolor import colored
 
-from shabda.display import print_error
-from shabda.client import Client
-from shabda.sampleset import FREESOUND, SampleSet, TTS
-from shabda.sound import Sound
 import shabda.chatter as chatter
+from shabda.client import Client
+from shabda.display import print_error
+from shabda.sampleset import FREESOUND, TTS, SampleSet
+from shabda.sound import Sound
 
 
 class Dj:
@@ -79,13 +79,31 @@ class Dj:
             max_number, licenses=licenses, gender=gender, language=language
         )
 
-    async def speak(self, word, language, gender):
+    async def speak(self, word, language, gender, pitch=0.0):
         """Speak a word"""
         sampleset = SampleSet(word, TTS, self.speech_samples_path)
         existing_samples = sampleset.list(language=language, gender=gender)
-        if len(existing_samples) > 0:
+        # When pitch is specified, skip cache check since the filename includes pitch
+        if pitch == 0.0 and len(existing_samples) > 0:
             return True
         word_dir = sampleset.dir()
+
+        # Check if this specific pitch variant already exists
+        pitch_suffix = f"_p{pitch:+.1f}" if pitch != 0.0 else ""
+        filepath = (
+            word_dir
+            + "/"
+            + word
+            + "_"
+            + language
+            + "_"
+            + gender
+            + pitch_suffix
+            + ".wav"
+        )
+        if os.path.exists(filepath):
+            return True
+
         client = texttospeech.TextToSpeechClient()
         synthesis_input = texttospeech.SynthesisInput(text=word.replace("_", " "))
 
@@ -103,19 +121,17 @@ class Dj:
                 language_code="en-GB",
                 ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
             )
-            # speaking_rate=0.85
-            # pitch=-4
         else:
             voice = texttospeech.VoiceSelectionParams(
                 name=voice_name, language_code=language
             )
         audio_config = texttospeech.AudioConfig(
             audio_encoding=texttospeech.AudioEncoding.LINEAR16,
+            pitch=max(-20.0, min(20.0, pitch)),
         )
         response = client.synthesize_speech(
             input=synthesis_input, voice=voice, audio_config=audio_config
         )
-        filepath = word_dir + "/" + word + "_" + language + "_" + gender + ".wav"
         with open(filepath, "wb") as out:
             out.write(response.audio_content)
         sound = Sound(

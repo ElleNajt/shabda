@@ -1,11 +1,11 @@
 """Freesound client"""
+
 import json
-import webbrowser
 import os
+import webbrowser
 
-import requests
 import freesound
-
+import requests
 from termcolor import colored
 
 
@@ -29,7 +29,9 @@ class Client:
         except IOError:
             self.token_data = {}
         if "access_token" not in self.token_data:
-            self._authorize()
+            # No Freesound token — TTS-only mode, skip Freesound init
+            print("No Freesound token found, running in TTS-only mode")
+            return
 
         self.client = freesound.FreesoundClient()
         self.client.set_token(self.token_data["access_token"], "oauth")

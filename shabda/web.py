@@ -85,7 +85,8 @@ async def pack_json(definition):
     base = "https://" + url.hostname
     if url.port:
         base += ":" + str(url.port)
-    base += "/"
+    script_name = request.environ.get("SCRIPT_NAME", "")
+    base += script_name + "/"
     try:
         words = dj.parse_definition(definition)
     except ValueError as ex:
@@ -210,7 +211,9 @@ async def speech_json(definition):
     base = "https://" + url.hostname
     if url.port:
         base += ":" + str(url.port)
-    base += "/"
+    # Include SCRIPT_NAME prefix (e.g. /shabda when mounted under FastAPI)
+    script_name = request.environ.get("SCRIPT_NAME", "")
+    base += script_name + "/"
     try:
         words = dj.parse_definition(definition)
     except ValueError as ex:
@@ -221,17 +224,23 @@ async def speech_json(definition):
         reslist = []
     for word in words:
         samples = dj.list(word, gender=gender, language=language, soundtype="tts")
+        # Use pitch-aware key so different pitches coexist as separate samples
+        if pitch != 0.0:
+            pitch_int = int(pitch) if pitch == int(pitch) else pitch
+            sample_key = f"{word}_p{pitch_int}"
+        else:
+            sample_key = word
         sample_num = 0
         for sound in samples:
             if strudel:
-                if word not in reslist:
-                    reslist[word] = []
-                reslist[word].append(sound.file)
+                if sample_key not in reslist:
+                    reslist[sample_key] = []
+                reslist[sample_key].append(sound.file)
             else:
                 sound_data = {
                     "url": sound.file,
                     "type": "audio",
-                    "bank": word,
+                    "bank": sample_key,
                     "n": sample_num,
                 }
                 reslist.append(sound_data)
@@ -244,13 +253,15 @@ async def speech_json(definition):
 @bp.route("/speech/speech_samples/<path:path>")
 def serve_sample(path):
     """Serve a sample"""
-    return send_from_directory("../speech_samples/", path, as_attachment=False)
+    return send_from_directory(
+        os.path.abspath(SPEECH_SAMPLE_PATH), path, as_attachment=False
+    )
 
 
 @bp.route("/samples/<path:path>")
 def serve_speech_sample(path):
     """Serve a sample"""
-    return send_from_directory("../samples/", path, as_attachment=False)
+    return send_from_directory(os.path.abspath(SAMPLES_PATH), path, as_attachment=False)
 
 
 @bp.route("/assets/<path:path>")

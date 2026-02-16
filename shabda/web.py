@@ -224,11 +224,17 @@ async def speech_json(definition):
         reslist = []
     for word in words:
         samples = dj.list(word, gender=gender, language=language, soundtype="tts")
-        # Use pitch-aware key so different pitches coexist as separate samples
+        # Filter to only the sample matching the requested pitch
         if pitch != 0.0:
+            pitch_suffix = f"_p{pitch:+.1f}"
+            samples = [s for s in samples if pitch_suffix in s.file]
             pitch_int = int(pitch) if pitch == int(pitch) else pitch
             sample_key = f"{word}_p{pitch_int}"
         else:
+            # When no pitch, exclude any pitched variants
+            samples = [
+                s for s in samples if "_p+" not in s.file and "_p-" not in s.file
+            ]
             sample_key = word
         sample_num = 0
         for sound in samples:

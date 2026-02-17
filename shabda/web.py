@@ -80,9 +80,8 @@ async def pack_json(definition):
     await pack(definition)
 
     url = urlparse(request.base_url)
-    # SORRY :( QUICK HACK TO SUPPORT MY REVERSE PROXY
-    # base = url.scheme + "://" + url.hostname
-    base = "https://" + url.hostname
+    scheme = request.headers.get("X-Forwarded-Proto", url.scheme)
+    base = scheme + "://" + url.hostname
     if url.port:
         base += ":" + str(url.port)
     script_name = request.environ.get("SCRIPT_NAME", "")
@@ -207,8 +206,8 @@ async def speech_json(definition):
     await speech(definition)
 
     url = urlparse(request.base_url)
-    # base = url.scheme + "://" + url.hostname
-    base = "https://" + url.hostname
+    scheme = request.headers.get("X-Forwarded-Proto", url.scheme)
+    base = scheme + "://" + url.hostname
     if url.port:
         base += ":" + str(url.port)
     # Include SCRIPT_NAME prefix (e.g. /shabda when mounted under FastAPI)

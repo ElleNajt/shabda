@@ -83,8 +83,10 @@ class Dj:
         """Speak a word"""
         sampleset = SampleSet(word, TTS, self.speech_samples_path)
         existing_samples = sampleset.list(language=language, gender=gender)
-        # When pitch is specified, skip cache check since the filename includes pitch
-        if pitch == 0.0 and len(existing_samples) > 0:
+        # Only skip generation if an unpitched sample already exists
+        if pitch == 0.0 and any(
+            "_p+" not in s.file and "_p-" not in s.file for s in existing_samples
+        ):
             return True
         word_dir = sampleset.dir()
 
